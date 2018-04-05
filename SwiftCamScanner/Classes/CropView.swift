@@ -56,7 +56,12 @@ public class CropView: UIView {
             cropImageView.contentMode = self.contentMode
             cropImageView.frame = self.bounds
             self.addSubview(cropImageView)
-            cropFrame = cropImageView.frame
+            cropFrame = {
+                var frame = cropImageView.frame
+                frame.size.width = cropImageView.image?.size.width ?? frame.width
+                frame.origin.x = self.bounds.width / 2 - frame.width / 2
+                return frame
+            }()
             setUpCropRegion()
             setUpGestureRecognizer()
             
@@ -114,14 +119,14 @@ public class CropView: UIView {
         
         //Get crop rectangle
         var i = 1
-        let x = cropImageView.frame.origin.x
-        let y = cropImageView.frame.origin.y
-        let width = cropImageView.frame.width
-        let height = cropImageView.frame.height
+        let x = cropFrame.origin.x
+        let y = cropFrame.origin.y
+        let width = cropFrame.width
+        let height = cropFrame.height
         
-        assert(cropImageView.frame.size != .zero, "Your view has zero size!")
+        assert(cropFrame.size != .zero, "Your view has zero size!")
         
-        let points = OpenCVWrapper.getLargestSquarePoints(cropImageView.image, cropImageView.frame.size)
+        let points = OpenCVWrapper.getLargestSquarePoints(cropImageView.image, cropFrame.size)
         var endPoints = [CGPoint]()
         
         //Add crop points and circles
@@ -235,8 +240,8 @@ public class CropView: UIView {
                 let edge = cropCircles[selectedIndex].center
                 let newPoint = CGPoint(x: edge.x + (point.x - oldPoint.x) , y: edge.y + (point.y - oldPoint.y) )
                 oldPoint = point
-                let boundedX = min(max(newPoint.x, cropImageView.frame.origin.x),(cropImageView.frame.origin.x+cropImageView.frame.size.width))
-                let boundedY = min(max(newPoint.y, cropImageView.frame.origin.y),(cropImageView.frame.origin.y+cropImageView.frame.size.height))
+                let boundedX = min(max(newPoint.x, cropFrame.origin.x),(cropFrame.origin.x+cropFrame.size.width))
+                let boundedY = min(max(newPoint.y, cropFrame.origin.y),(cropFrame.origin.y+cropFrame.size.height))
                 let finalPoint = CGPoint(x: boundedX, y: boundedY)
                 cropCircles[selectedIndex].center = finalPoint
             }
@@ -338,10 +343,10 @@ public class CropView: UIView {
     
     ///Before moving to a new location, check if the new point inside the cropView
     private func isInsideFrame(pt: CGPoint) -> Bool{
-        if(pt.x < cropImageView.frame.origin.x || pt.x > (cropImageView.frame.origin.x+cropImageView.frame.size.width)){
+        if(pt.x < cropFrame.origin.x || pt.x > (cropFrame.origin.x+cropFrame.size.width)){
             return false
         }
-        if(pt.y < cropImageView.frame.origin.y || pt.y > (cropImageView.frame.origin.y+cropImageView.frame.size.height)){
+        if(pt.y < cropFrame.origin.y || pt.y > (cropFrame.origin.y+cropFrame.size.height)){
             return false
         }
         return true
