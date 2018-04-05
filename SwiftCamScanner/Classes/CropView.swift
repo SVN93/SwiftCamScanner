@@ -56,10 +56,15 @@ public class CropView: UIView {
             cropImageView.contentMode = self.contentMode
             cropImageView.frame = self.bounds
             self.addSubview(cropImageView)
+            let maxImageSide = CGFloat.maximum(image.size.width, image.size.height)
+            let maxImageViewSide = CGFloat.maximum(cropImageView.bounds.size.width, cropImageView.bounds.size.height)
+            let scale = maxImageSide / maxImageViewSide
             cropFrame = {
                 var frame = cropImageView.frame
-                frame.size.width = cropImageView.image?.size.width ?? frame.width
+                frame.size.width = image.size.width / scale
+                frame.size.height = image.size.height / scale
                 frame.origin.x = self.bounds.width / 2 - frame.width / 2
+                frame.origin.x = self.bounds.height / 2 - frame.height / 2
                 return frame
             }()
             setUpCropRegion()
