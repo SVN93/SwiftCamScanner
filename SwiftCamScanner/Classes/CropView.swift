@@ -64,7 +64,7 @@ public class CropView: UIView {
                 frame.size.width = image.size.width / scale
                 frame.size.height = image.size.height / scale
                 frame.origin.x = self.bounds.width / 2 - frame.width / 2
-                frame.origin.x = self.bounds.height / 2 - frame.height / 2
+                frame.origin.y = self.bounds.height / 2 - frame.height / 2
                 return frame
             }()
             setUpCropRegion()
