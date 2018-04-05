@@ -23,13 +23,13 @@ public class CropView: UIView {
     public var circleBorderRadius:CGFloat = 10
     public var circleAlpha:CGFloat = 0.65
     public var rectangleAlpha:CGFloat = 1
-
+    
     public override var contentMode: UIViewContentMode {
         didSet {
             self.cropImageView.contentMode = contentMode
         }
     }
-
+    
     //MARK:Local Variables
     var cropPoints = [CGPoint]()
     var cropCircles = [UIView]()
@@ -48,7 +48,7 @@ public class CropView: UIView {
      The entry point function to set up the crop frame and gesture recoginisers for the crop points.
      The crop frame has 8 points - 4 corner and 4 edge.
      - parameters:
-         - image: The UIImage you want in the crop frame
+     - image: The UIImage you want in the crop frame
      */
     public func setUpImage(image : UIImage){
         if(!self.subviews.contains(cropImageView)){
@@ -87,6 +87,15 @@ public class CropView: UIView {
          */
         reorderEndPoints()
         
+        cropCircles.forEach { (cropCircle) in
+            cropCircle.frame = {
+                var frame = cropCircle.frame
+                frame.origin.x -= cropFrame.origin.x
+                frame.origin.y -= cropFrame.origin.y
+                return frame
+            }()
+        }
+        
         var corners = [CGPoint]()
         for i in stride(from: 0, to:7 , by: 2) {
             corners.append(cropCircles[i].center)
@@ -98,14 +107,14 @@ public class CropView: UIView {
         let rightHeight = distanceBetweenPoints(point1: corners[1], point2: corners[2])
         let newWidth = max(topWidth, bottomWidth)
         let newHeight = max(leftHeight, rightHeight)
-        let widthScale = cropImageView.image!.size.width/cropImageView.frame.size.width
-        let heightScale = cropImageView.image!.size.height/cropImageView.frame.size.height
+        let widthScale = cropImageView.image!.size.width / cropFrame.width
+        let heightScale = cropImageView.image!.size.height / cropFrame.height
         var corners2 = [CGPoint]()
         for i in stride(from: 0, to:7 , by: 2) {
-            let point = CGPoint(x: cropCircles[i].center.x * widthScale, y: cropCircles[i].center.y*heightScale)
+            let point = CGPoint(x: cropCircles[i].center.x * widthScale, y: cropCircles[i].center.y * heightScale)
             corners2.append(point)
         }
-        let newImage = OpenCVWrapper.getTransformedImage(newWidth*widthScale, newHeight*heightScale, cropImageView.image, &corners2, (cropImageView.image!.size))
+        let newImage = OpenCVWrapper.getTransformedImage(newWidth * widthScale, newHeight * heightScale, cropImageView.image, &corners2, (cropImageView.image!.size))
         
         completionHandler(newImage!)
     }
@@ -142,9 +151,9 @@ public class CropView: UIView {
             }
         }else{
             endPoints.append(CGPoint(x: x, y: y))
-            endPoints.append(CGPoint(x: x+width, y: y))
-            endPoints.append(CGPoint(x: x+width, y: y+height))
-            endPoints.append(CGPoint(x: x, y: y+height))
+            endPoints.append(CGPoint(x: x + width, y: y))
+            endPoints.append(CGPoint(x: x + width, y: y + height))
+            endPoints.append(CGPoint(x: x, y: y + height))
         }
         
         
@@ -173,7 +182,7 @@ public class CropView: UIView {
             }
             cropCircles.append(cropCircle)
             self.addSubview(cropCircle)
-            i = i+1
+            i += 1
         }
         
         redrawBorderRectangle()
@@ -187,18 +196,18 @@ public class CropView: UIView {
         let beizierPath = UIBezierPath()
         beizierPath.move(to: cropCircles[0].center)
         for i in stride(from: 2, to:9 , by: 2) {
-        beizierPath.addLine(to: cropCircles[i % 8].center)
+            beizierPath.addLine(to: cropCircles[i % 8].center)
         }
         
         border.path = beizierPath.cgPath
     }
-
+    
     
     /**
      Sets up pan gesture reconginzers for all 8 crop points on the crop rectangle.
      When the 4 corner points or moved, the size and angles in the rectangle varry accordingly.
      When the 4 edge points are moved, the corresponding edge moves parallel to the gesture.
- */
+     */
     private func setUpGestureRecognizer(){
         let gestureRecognizer = UIPanGestureRecognizer.init(target: self, action: #selector(CropView.panGesture))
         self.addGestureRecognizer(gestureRecognizer)
@@ -209,7 +218,7 @@ public class CropView: UIView {
         if(gesture.state == UIGestureRecognizerState.began){
             selectedIndex = nil
             //Setup the point
-            for i in stride(from: 1, to: 8, by: 2){
+            for i in stride(from: 1, to: 8, by: 2) {
                 let newFrame = CGRect(x: cropCircles[i].center.x, y: cropCircles[i].center.y, width: cropCircles[i].frame.width, height: cropCircles[i].frame.height)
                 if(newFrame.contains(point)){
                     selectedIndex = i
@@ -218,20 +227,19 @@ public class CropView: UIView {
                     m = ((Double)(pt1.y - pt2.y)/(Double)(pt2.x - pt1.x))
                     cropCircles[selectedIndex!].backgroundColor = selectedCircleBackgroundColor
                     cropCircles[selectedIndex!].layer.borderColor = selectedCircleBorderColor.cgColor
-
+                    
                     break
                 }
             }
-            if(selectedIndex == nil){
+            if (selectedIndex == nil) {
                 selectedIndex = getClosestCorner(point: point)
                 oldPoint = point
                 cropCircles[selectedIndex!].backgroundColor = selectedCircleBackgroundColor
                 cropCircles[selectedIndex!].layer.borderColor = selectedCircleBorderColor.cgColor
-
             }
         }
         if let selectedIndex = selectedIndex {
-            if((selectedIndex) % 2 != 0){
+            if ((selectedIndex) % 2 != 0) {
                 //Do complex stuff
                 let pt1 = cropCircles[selectedIndex - 1]
                 let pt2 = cropCircles[(selectedIndex == 7 ? 0 : selectedIndex + 1)]
@@ -241,15 +249,16 @@ public class CropView: UIView {
                     pt1.center = pt1New
                     pt2.center = pt2New
                 }
-            }else{// Pan gesure for edge points - move the corresponding edge parallel to its old position and passing through the gesture point
+            } else {// Pan gesure for edge points - move the corresponding edge parallel to its old position and passing through the gesture point
                 let edge = cropCircles[selectedIndex].center
                 let newPoint = CGPoint(x: edge.x + (point.x - oldPoint.x) , y: edge.y + (point.y - oldPoint.y) )
                 oldPoint = point
-                let boundedX = min(max(newPoint.x, cropFrame.origin.x),(cropFrame.origin.x+cropFrame.size.width))
-                let boundedY = min(max(newPoint.y, cropFrame.origin.y),(cropFrame.origin.y+cropFrame.size.height))
+                let boundedX = min(max(newPoint.x, cropFrame.origin.x), (cropFrame.origin.x + cropFrame.size.width))
+                let boundedY = min(max(newPoint.y, cropFrame.origin.y), (cropFrame.origin.y + cropFrame.size.height))
                 let finalPoint = CGPoint(x: boundedX, y: boundedY)
                 cropCircles[selectedIndex].center = finalPoint
             }
+            
             moveNonCornerPoints()
             redrawBorderRectangle()
             
@@ -319,7 +328,7 @@ public class CropView: UIView {
         moveNonCornerPoints()
         redrawBorderRectangle()
     }
-
+    
     
     /**
      If the pan gesture doesnt happen on one of the crop circles, fetch the closest corner (only corners).
@@ -410,8 +419,8 @@ public class CropView: UIView {
     }
     
     ///Returns the center of two CGPoints
-    private func centerOf(firstPoint: CGPoint, secondPoint: CGPoint) -> CGPoint{
-        return CGPoint(x: (firstPoint.x+secondPoint.x)/2, y: (firstPoint.y + secondPoint.y)/2)
+    private func centerOf(firstPoint: CGPoint, secondPoint: CGPoint) -> CGPoint {
+        return CGPoint(x: (firstPoint.x + secondPoint.x) / 2, y: (firstPoint.y + secondPoint.y) / 2)
     }
     
 }
