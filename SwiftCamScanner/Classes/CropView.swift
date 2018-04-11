@@ -58,6 +58,11 @@ public class CropView: UIView {
         self.setup()
     }
     
+    public override func layoutSubviews() {
+        super.layoutSubviews()
+        self.cropImageView.frame = self.bounds
+    }
+
     //MARK: Public Methods
     /**
      The entry point function to set up the crop frame and gesture recoginisers for the crop points.
