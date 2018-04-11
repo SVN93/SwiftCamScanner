@@ -42,6 +42,21 @@ public class CropView: UIView {
     let border = CAShapeLayer()
     var oldPoint = CGPoint(x: 0, y: 0)
     
+    open func setup() {
+        self.backgroundColor = .clear
+        self.cropImageView.contentMode = self.contentMode
+        self.addSubview(self.cropImageView)
+    }
+    
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        self.setup()
+    }
+    
+    required public init?(coder aDecoder: NSCoder) {
+        super.init(coder: aDecoder)
+        self.setup()
+    }
     
     //MARK: Public Methods
     /**
@@ -50,28 +65,27 @@ public class CropView: UIView {
      - parameters:
      - image: The UIImage you want in the crop frame
      */
-    public func setUpImage(image : UIImage){
-        if(!self.subviews.contains(cropImageView)){
-            cropImageView = UIImageView(image: normalizedImage(image: image))
-            cropImageView.contentMode = self.contentMode
-            cropImageView.frame = self.bounds
-            self.addSubview(cropImageView)
-            let widthScale = image.size.width / cropImageView.bounds.width
-            let heightScale = image.size.height / cropImageView.bounds.height
-            let maxScale = CGFloat.maximum(widthScale, heightScale)
-            cropFrame = {
-                var frame = cropImageView.frame
-                frame.size.width = image.size.width / maxScale
-                frame.size.height = image.size.height / maxScale
-                frame.origin.x = self.bounds.width / 2 - frame.width / 2
-                frame.origin.y = self.bounds.height / 2 - frame.height / 2
-                return frame
-            }()
-            setUpCropRegion()
-            setUpGestureRecognizer()
-            
+    public func setUpImage(image : UIImage) {
+        cropPoints.removeAll()
+        for circle in cropCircles {
+            circle.removeFromSuperview()
         }
-        
+        cropCircles.removeAll()
+        cropImageView.image = normalizedImage(image: image)
+        cropImageView.frame = self.bounds
+        let widthScale = image.size.width / cropImageView.bounds.width
+        let heightScale = image.size.height / cropImageView.bounds.height
+        let maxScale = CGFloat.maximum(widthScale, heightScale)
+        cropFrame = {
+            var frame = cropImageView.frame
+            frame.size.width = image.size.width / maxScale
+            frame.size.height = image.size.height / maxScale
+            frame.origin.x = self.bounds.width / 2 - frame.width / 2
+            frame.origin.y = self.bounds.height / 2 - frame.height / 2
+            return frame
+        }()
+        setUpCropRegion()
+        setUpGestureRecognizer()
     }
     
     /**
