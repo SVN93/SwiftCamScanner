@@ -11,6 +11,7 @@
 #import <opencv2/imgcodecs/ios.h>
 #import<opencv2/stitching.hpp>
 using namespace std;
+using namespace cv;
 
 
 @implementation OpenCVWrapper
@@ -42,10 +43,10 @@ using namespace std;
     CGContextRelease(contextRef);
     
     imageMat = cvMat;
-
-     cv::resize(imageMat, imageMat, cvSize(size.width, size.height));
     
-//    UIImageToMat(image, imageMat);
+    cv::resize(imageMat, imageMat, cvSize(size.width, size.height));
+    
+    //    UIImageToMat(image, imageMat);
     
     
     std::vector<std::vector<cv::Point> >rectangle;
@@ -57,14 +58,14 @@ using namespace std;
     if (largestRectangle.size() == 4)
     {
         
-//        Thanks to: https://stackoverflow.com/questions/20395547/sorting-an-array-of-x-and-y-vertice-points-ios-objective-c/20399468#20399468
+        //        Thanks to: https://stackoverflow.com/questions/20395547/sorting-an-array-of-x-and-y-vertice-points-ios-objective-c/20399468#20399468
         
         NSArray *points = [NSArray array];
         points = @[
-                            [NSValue valueWithCGPoint:(CGPoint){(CGFloat)largestRectangle[0].x, (CGFloat)largestRectangle[0].y}],
-                            [NSValue valueWithCGPoint:(CGPoint){(CGFloat)largestRectangle[1].x, (CGFloat)largestRectangle[1].y}],
-                            [NSValue valueWithCGPoint:(CGPoint){(CGFloat)largestRectangle[2].x, (CGFloat)largestRectangle[2].y}],
-                            [NSValue valueWithCGPoint:(CGPoint){(CGFloat)largestRectangle[3].x, (CGFloat)largestRectangle[3].y}]                            ];
+                   [NSValue valueWithCGPoint:(CGPoint){(CGFloat)largestRectangle[0].x, (CGFloat)largestRectangle[0].y}],
+                   [NSValue valueWithCGPoint:(CGPoint){(CGFloat)largestRectangle[1].x, (CGFloat)largestRectangle[1].y}],
+                   [NSValue valueWithCGPoint:(CGPoint){(CGFloat)largestRectangle[2].x, (CGFloat)largestRectangle[2].y}],
+                   [NSValue valueWithCGPoint:(CGPoint){(CGFloat)largestRectangle[3].x, (CGFloat)largestRectangle[3].y}]                            ];
         
         CGPoint min = [points[0] CGPointValue];
         CGPoint max = min;
@@ -102,9 +103,9 @@ using namespace std;
         [squarePoints addObject: [sortedPoints objectAtIndex:2]];
         [squarePoints addObject: [sortedPoints objectAtIndex:3]];
         imageMat.release();
-
+        
         return squarePoints;
-
+        
         
     }
     else{
@@ -198,7 +199,7 @@ void getlargestRectangle(const std::vector<std::vector<cv::Point> >& rectangles,
     {
         cv::Rect rectangle = boundingRect(cv::Mat(rectangles[i]));
         double area = rectangle.width * rectangle.height;
-                
+        
         if (maxArea < area)
         {
             maxArea = area;
@@ -221,28 +222,40 @@ double angle( cv::Point pt1, cv::Point pt2, cv::Point pt0 ) {
 
 +(UIImage *) getTransformedImage: (CGFloat) newWidth : (CGFloat) newHeight : (UIImage *) origImage : (CGPoint [4]) corners : (CGSize) size {
     
-    cv::Mat imageMat;
-    
+    cv::Mat m;
+    BOOL alphaExist = false;
     
     CGColorSpaceRef colorSpace = CGImageGetColorSpace(origImage.CGImage);
-    CGFloat cols = size.width;
-    CGFloat rows = size.height;
+    CGFloat cols = CGImageGetWidth(origImage.CGImage), rows = CGImageGetHeight(origImage.CGImage);
+    CGContextRef contextRef;
+    CGBitmapInfo bitmapInfo = kCGImageAlphaPremultipliedLast;
+    if (CGColorSpaceGetModel(colorSpace) == kCGColorSpaceModelMonochrome) {
+        m.create(rows, cols, CV_8UC1); // 8 bits per component, 1 channel
+        bitmapInfo = kCGImageAlphaNone;
+        if (!alphaExist)
+            bitmapInfo = kCGImageAlphaNone;
+        else
+            m = Scalar(0);
+        contextRef = CGBitmapContextCreate(m.data, m.cols, m.rows, 8,
+                                           m.step[0], colorSpace,
+                                           bitmapInfo);
+    } else {
+        m.create(rows, cols, CV_8UC4); // 8 bits per component, 4 channels
+        if (!alphaExist)
+            bitmapInfo = kCGImageAlphaNoneSkipLast |
+            kCGBitmapByteOrderDefault;
+        else
+            m = Scalar(0);
+        contextRef = CGBitmapContextCreate(m.data, m.cols, m.rows, 8,
+                                           m.step[0], colorSpace,
+                                           bitmapInfo);
+    }
     
-    cv::Mat cvMat(rows, cols, CV_8UC4); // 8 bits per component, 4 channels
-    
-    CGContextRef contextRef = CGBitmapContextCreate(cvMat.data,                 // Pointer to backing data
-                                                    cols,                       // Width of bitmap
-                                                    rows,                       // Height of bitmap
-                                                    8,                          // Bits per component
-                                                    cvMat.step[0],              // Bytes per row
-                                                    colorSpace,                 // Colorspace
-                                                    kCGImageAlphaNoneSkipLast |
-                                                    kCGBitmapByteOrderDefault); // Bitmap info flags
-    
-    CGContextDrawImage(contextRef, CGRectMake(0, 0, cols, rows), origImage.CGImage);
+    CGContextDrawImage(contextRef, CGRectMake(0, 0, cols, rows),
+                       origImage.CGImage);
     CGContextRelease(contextRef);
     
-    imageMat = cvMat;
+    cv::Mat imageMat = m;
     
     cv::Mat newImageMat = cv::Mat( cvSize(newWidth,newHeight), CV_8UC4);
     
@@ -264,14 +277,15 @@ double angle( cv::Point pt1, cv::Point pt2, cv::Point pt0 ) {
     dst[2].y = newHeight - 1;
     dst[3].x = 0;
     dst[3].y = newHeight - 1;
- 
+    
     
     
     cv::warpPerspective(imageMat, newImageMat, cv::getPerspectiveTransform(src, dst), cvSize(newWidth, newHeight));
     
     //Transform to UIImage
     
-    NSData *data = [NSData dataWithBytes:newImageMat.data length:newImageMat.elemSize() * newImageMat.total()];
+    NSData *data = [NSData dataWithBytes:newImageMat.data
+                                  length:newImageMat.step.p[0] * newImageMat.rows];
     
     CGColorSpaceRef colorSpace2;
     
@@ -281,28 +295,35 @@ double angle( cv::Point pt1, cv::Point pt2, cv::Point pt0 ) {
         colorSpace2 = CGColorSpaceCreateDeviceRGB();
     }
     
-    CGDataProviderRef provider = CGDataProviderCreateWithCFData((__bridge CFDataRef)data);
-    CGFloat width = newImageMat.cols;
-    CGFloat height = newImageMat.rows;
+    CGDataProviderRef provider =
+    CGDataProviderCreateWithCFData((__bridge CFDataRef)data);
     
-    CGImageRef imageRef = CGImageCreate(width,                                     // Width
-                                        height,                                     // Height
-                                        8,                                              // Bits per component
-                                        8 * newImageMat.elemSize(),                           // Bits per pixel
-                                        newImageMat.step[0],                                  // Bytes per row
-                                        colorSpace2,                                     // Colorspace
-                                        kCGImageAlphaNone | kCGBitmapByteOrderDefault,  // Bitmap info flags
-                                        provider,                                       // CGDataProviderRef
-                                        NULL,                                           // Decode
-                                        false,                                          // Should interpolate
-                                        kCGRenderingIntentDefault);                     // Intent
+    // Preserve alpha transparency, if exists
+    bool alpha = newImageMat.channels() == 4;
+    CGBitmapInfo bitmapInfo2 = (alpha ? kCGImageAlphaLast : kCGImageAlphaNone) | kCGBitmapByteOrderDefault;
     
-    UIImage *image = [[UIImage alloc] initWithCGImage:imageRef];
-    CGImageRelease(imageRef);
+    // Creating CGImage from cv::Mat
+    CGImageRef imageRef2 = CGImageCreate(newImageMat.cols,
+                                         newImageMat.rows,
+                                         8 * newImageMat.elemSize1(),
+                                         8 * newImageMat.elemSize(),
+                                         newImageMat.step.p[0],
+                                         colorSpace2,
+                                         bitmapInfo2,
+                                         provider,
+                                         NULL,
+                                         false,
+                                         kCGRenderingIntentDefault
+                                         );
+    
+    
+    // Getting UIImage from CGImage
+    UIImage *finalImage = [UIImage imageWithCGImage:imageRef2];
+    CGImageRelease(imageRef2);
     CGDataProviderRelease(provider);
     CGColorSpaceRelease(colorSpace2);
     
-    return image;
+    return finalImage;
 }
 
 
