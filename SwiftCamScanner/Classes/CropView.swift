@@ -7,7 +7,7 @@
 //
 import UIKit
 
-public class CropView: UIView {
+open class CropView: UIView {
     
     // MARK:Public Variables
     public var rectangleBorderColor = UIColor.blue {
@@ -32,7 +32,7 @@ public class CropView: UIView {
     public var circleAlpha: CGFloat = 0.65
     public var rectangleAlpha: CGFloat = 1
     
-    public override var contentMode: UIViewContentMode {
+    open override var contentMode: UIViewContentMode {
         didSet {
             self.cropImageView.contentMode = contentMode
         }
@@ -88,7 +88,7 @@ public class CropView: UIView {
         self.setUpCropRegion()
     }
     
-    public override func layoutSubviews() {
+    open override func layoutSubviews() {
         super.layoutSubviews()
         self.cropImageView.frame = self.bounds
         self.calculateCropFrame()
