@@ -62,7 +62,7 @@ open class CropView: UIView {
         self.setUpGestureRecognizer()
     }
     
-    override init(frame: CGRect) {
+    override public init(frame: CGRect) {
         super.init(frame: frame)
         self.setup()
     }
@@ -71,7 +71,7 @@ open class CropView: UIView {
         super.init(coder: aDecoder)
         self.setup()
     }
-    
+
     fileprivate func calculateCropFrame() {
         guard let image = self.cropImageView.image else { return }
         let widthScale = image.size.width / self.cropImageView.bounds.width
